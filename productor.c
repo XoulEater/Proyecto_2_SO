@@ -39,37 +39,39 @@ void registrar_bitacora(pid_t pid, const char *accion, int inicio, int cantidad)
 
 // Algoritmos de asignación
 int buscar_memoria(int size) {
+    int inicio = -1;
     int mejor_inicio = -1;
-    int mejor_tamano = (algoritmo == BEST_FIT) ? TAM_MEMORIA + 1 : -1;
+    int mejor_tamano = TAM_MEMORIA + 1;
 
-    int i = 0;
-    // TODO: Implementar el algoritmo de asignación
-    while (i < TAM_MEMORIA) {
-        if (!memoria->lineas[i].ocupado) {
-            int inicio = i;
-            int libre = 0;
-            while (i < TAM_MEMORIA && !memoria->lineas[i].ocupado) {  
-                libre++;
-                if (libre == size) break;
-                i++;
+    for (int i = 0; i < TAM_MEMORIA; i++) {
+        if (memoria->lineas[i].ocupado == 0) {
+            if (inicio == -1) {
+                inicio = i;
             }
-
-            if (libre >= size) { 
-                if (algoritmo == FIRST_FIT) return inicio; // First-Fit
-                if (algoritmo == BEST_FIT && libre < mejor_tamano) {
+            if (i - inicio + 1 == size) {
+                return inicio; // First-Fit
+            }
+        } else {
+            if (algoritmo == BEST_FIT && inicio != -1) {
+                int tamano = i - inicio;
+                if (tamano >= size && tamano < mejor_tamano) {
+                    mejor_tamano = tamano;
                     mejor_inicio = inicio;
-                    mejor_tamano = libre;
-                }
-                if (algoritmo == WORST_FIT && libre > mejor_tamano) {
-                    mejor_inicio = inicio;
-                    mejor_tamano = libre;
                 }
             }
+            inicio = -1; // Reiniciar búsqueda
         }
-        i++;
     }
 
-    return (algoritmo == FIRST_FIT) ? mejor_inicio : (mejor_tamano == TAM_MEMORIA + 1) ? -1 : mejor_inicio;
+    if (algoritmo == BEST_FIT && mejor_inicio != -1) {
+        return mejor_inicio; // Best-Fit
+    }
+
+    if (algoritmo == WORST_FIT && inicio != -1) {
+        return inicio; // Worst-Fit
+    }
+
+    return -1; // No hay espacio suficiente
 }
 
 // Función que ejecuta cada "proceso" (hilo)
@@ -78,6 +80,8 @@ void *proceso(void *arg) {
     pthread_t tid = pthread_self();
     int size = (rand() % 10) + 1;
     int duracion = (rand() % 41) + 20;
+
+    printf("Hilo %lu (PID %d) solicita %d líneas por %d segundos.\n", tid, pid, size, duracion);
 
     int inicio = -1;
 
@@ -143,7 +147,7 @@ int main() {
         pthread_create(&hilo, NULL, proceso, NULL);
         pthread_detach(hilo); // No esperamos que finalice
 
-        int espera = (rand() % 31) + 30;
+        int espera = (rand() % 31) + 0;
         sleep(espera);
     }
 
